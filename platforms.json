@@ -40,8 +40,8 @@
       "runtime_baseline": "Windows 10 / Server 2016 and later; UCRT is supplied by the operating system",
       "build_host": "GitHub windows-2022 x64 with the pinned MSYS2 UCRT64 setup action",
       "tested_on": "CI on Windows Server 2022",
-      "system_library_allowlist": ["KERNEL32.dll", "ADVAPI32.dll", "USER32.dll", "SHELL32.dll", "OLE32.dll", "WINMM.dll", "WS2_32.dll", "bcrypt.dll", "api-ms-win-crt-*.dll", "ucrtbase.dll", "VCRUNTIME140.dll"],
-      "notes": "All non-system DLLs are built from this lock file. FFmpeg 8 produces the consumer-required 60/62/62/6 DLL ABI names."
+      "system_library_allowlist": ["KERNEL32.dll", "ADVAPI32.dll", "USER32.dll", "SHELL32.dll", "SHLWAPI.dll", "OLE32.dll", "WINMM.dll", "WS2_32.dll", "bcrypt.dll", "api-ms-win-crt-*.dll", "ucrtbase.dll", "VCRUNTIME140.dll"],
+      "notes": "Audio DLLs are built from this lock file. The archive also includes the MinGW runtime DLLs required by the built C and C++ libraries. FFmpeg 8 produces the consumer-required 60/62/62/6 DLL ABI names."
     }
   }
 }

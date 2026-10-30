@@ -51,11 +51,11 @@ python3 scripts/audio_build.py package --target aarch64-macosx --version 1.0.0
 ```
 
 `stage` creates a runtime layout with `lib/`, `lib/ao/plugins-4/`, license texts, a build provenance record, and a machine-readable file manifest. 
-Unix archives preserve symlinks and modes. Windows uses zip.
+Unix archives preserve symlinks and modes. Windows uses zip and includes the MinGW runtime DLLs needed by the built C and C++ libraries, with their license texts.
 
 `test` first copies the staged runtime to another directory. It never adds the original build prefix to a loader path. 
 It then checks library loading, required symbols, the FFmpeg ABI, and libao init/shutdown using only the extracted runtime. 
-The audit checks filenames, architecture, loader metadata, RPATH or install names, and forbidden build or Homebrew paths.
+The audit checks filenames, architecture, and loader metadata. On Unix it also checks RPATH or install names and forbidden build or Homebrew paths.
 
 The GitHub workflow runs the same `all` command for every target. 
 It uploads the archive, runtime manifest, provenance, FFmpeg configuration, and audit report. 

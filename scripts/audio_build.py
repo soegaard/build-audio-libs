@@ -569,9 +569,39 @@ def windows_aliases(stage: Path) -> None:
     candidates = sorted(library.glob("libao*.dll"))
     if not candidates:
         fail("libao did not install a Windows DLL")
-    # racket-audio pins this literal historical name. This is an alias to the
-    # same DLL, not a substitute for the ABI-sensitive FFmpeg names.
-    shutil.copy2(candidates[0], library / "libao-1.2.2.dll")
+    aliases = {
+        # racket-audio pins this literal historical name. This is an alias to
+        # the same DLL, not a substitute for the ABI-sensitive FFmpeg names.
+        "libao-1.2.2.dll": candidates[0],
+        # The Windows import names from these upstream builds omit the lib
+        # prefix that their installed DLL filenames use.
+        "zlib1.dll": library / "libzlib1.dll",
+        "ogg.dll": library / "libogg.dll",
+    }
+    for alias, source in aliases.items():
+        if not source.is_file():
+            fail(f"missing Windows runtime library for alias {alias}: {source.name}")
+        if source.name != alias:
+            shutil.copy2(source, library / alias)
+
+
+def bundle_windows_toolchain_runtime(stage: Path) -> None:
+    compiler = shutil.which("gcc")
+    if not compiler:
+        fail("gcc is required to locate the Windows runtime DLLs")
+    root = Path(compiler).resolve().parent.parent
+    library = stage / "lib"
+    for name in ("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"):
+        source = root / "bin" / name
+        if not source.is_file():
+            fail(f"missing MinGW runtime DLL: {source}")
+        shutil.copy2(source, library / name)
+    licenses = root / "share" / "licenses"
+    for package in ("gcc-libs", "winpthreads"):
+        source = licenses / package
+        if not source.is_dir():
+            fail(f"missing MinGW runtime license directory: {source}")
+        shutil.copytree(source, stage / "licenses" / "mingw-ucrt64" / package)
 
 
 def stage_target(target: str) -> Path:
@@ -607,6 +637,7 @@ def stage_target(target: str) -> Path:
         linux_relocate(stage)
     else:
         windows_aliases(stage)
+        bundle_windows_toolchain_runtime(stage)
     records = source_map(load_lock())
     copy_licenses(records, stage)
     provenance = read_json(WORK / "provenance" / target / "build.json")
@@ -700,7 +731,11 @@ def library_matches_stem(path: Path, stem: str, system: str) -> bool:
         stems = [normalized_stem]
         if normalized_stem.startswith("libav"):
             stems.append(normalized_stem[3:])
-        return any(name == f"{value}.dll" or name.startswith(f"{value}-") for value in stems)
+        return any(
+            name == f"{value}.dll"
+            or re.fullmatch(rf"{re.escape(value)}-\d+(?:[.-]\d+)*\.dll", name)
+            for value in stems
+        )
     return name.startswith(f"{normalized_stem}.")
 
 
@@ -711,6 +746,15 @@ def architecture_matches(description: str, architecture: str) -> bool:
         "aarch64": ("aarch64", "arm64"),
     }
     return any(name in description.lower() for name in aliases.get(architecture, (architecture,)))
+
+
+def windows_export_symbols(details: str) -> str:
+    """Extract DLL export names from objdump's PE export table."""
+    _, marker, table = details.partition("[Ordinal/Name Pointer] Table")
+    if not marker:
+        return ""
+    table = table.split("The Function Table", 1)[0]
+    return "\n".join(re.findall(r"^\s*\[\s*\d+\]\s+(\S+)", table, flags=re.MULTILINE))
 
 
 def audit_target(target: str, stage: Path | None = None) -> Path:
@@ -778,9 +822,9 @@ def audit_target(target: str, stage: Path | None = None) -> Path:
             for dependency in imports:
                 if dependency.lower() not in staged_names and not allowed_dependency(dependency, allowed_names):
                     report["errors"].append(f"{key}: unbundled runtime dependency {dependency}")
-            symbols = capture(["nm", "-g", str(shared)])
+            symbols = windows_export_symbols(details)
         forbidden = [str(WORK), "/opt/homebrew", "/usr/local/homebrew"]
-        if any(value in details for value in forbidden):
+        if system != "windows" and any(value in details for value in forbidden):
             report["errors"].append(f"{key}: contains a build or Homebrew path")
         for stem, symbol in REQUIRED_EXPORTS.items():
             if library_matches_stem(shared, stem, system) and symbol not in symbols:

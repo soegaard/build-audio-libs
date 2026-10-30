@@ -78,6 +78,8 @@ class OrchestrationTests(unittest.TestCase):
         self.assertTrue(BUILD.library_matches_stem(Path("libsoxr.so.0"), "libsoxr", "linux"))
         self.assertFalse(BUILD.library_matches_stem(Path("libsoxr-lsr.so.0"), "libsoxr", "linux"))
         self.assertTrue(BUILD.library_matches_stem(Path("avcodec-62.dll"), "libavcodec", "windows"))
+        self.assertTrue(BUILD.library_matches_stem(Path("libsoxr.dll"), "libsoxr", "windows"))
+        self.assertFalse(BUILD.library_matches_stem(Path("libsoxr-lsr.dll"), "libsoxr", "windows"))
 
     def test_architecture_matching_accepts_file_tool_names(self) -> None:
         self.assertTrue(BUILD.architecture_matches("ELF 64-bit x86-64", "x86_64"))
@@ -99,6 +101,50 @@ class OrchestrationTests(unittest.TestCase):
             BUILD.configure_command(windows_source, "x86_64-win32", ["--prefix=out"]),
             ["sh", "/d/build/source/configure", "--prefix=out"],
         )
+
+    def test_windows_export_symbols_reads_pe_export_table(self) -> None:
+        details = """\
+The Export Tables (interpreted .edata section contents)
+[Ordinal/Name Pointer] Table
+\t[   0] avcodec_version
+\t[   1] avcodec_send_packet
+The Function Table
+"""
+        symbols = BUILD.windows_export_symbols(details)
+        self.assertIn("avcodec_version", symbols)
+        self.assertIn("avcodec_send_packet", symbols)
+
+    def test_windows_aliases_cover_upstream_import_names(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stage = Path(directory)
+            library = stage / "lib"
+            library.mkdir()
+            for name in ("libao-4.dll", "libzlib1.dll", "libogg.dll"):
+                (library / name).write_bytes(name.encode())
+            BUILD.windows_aliases(stage)
+            self.assertEqual((library / "libao-1.2.2.dll").read_bytes(), b"libao-4.dll")
+            self.assertEqual((library / "zlib1.dll").read_bytes(), b"libzlib1.dll")
+            self.assertEqual((library / "ogg.dll").read_bytes(), b"libogg.dll")
+
+    def test_windows_runtime_bundle_includes_dlls_and_licenses(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "ucrt64"
+            compiler = root / "bin" / "gcc"
+            compiler.parent.mkdir(parents=True)
+            compiler.touch()
+            for name in ("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"):
+                (root / "bin" / name).write_bytes(name.encode())
+            for package in ("gcc-libs", "winpthreads"):
+                license_file = root / "share" / "licenses" / package / "COPYING"
+                license_file.parent.mkdir(parents=True)
+                license_file.write_text(package, encoding="utf-8")
+            stage = Path(directory) / "stage"
+            (stage / "lib").mkdir(parents=True)
+            with mock.patch.object(BUILD.shutil, "which", return_value=str(compiler)):
+                BUILD.bundle_windows_toolchain_runtime(stage)
+            self.assertTrue((stage / "lib" / "libgcc_s_seh-1.dll").is_file())
+            self.assertTrue((stage / "licenses" / "mingw-ucrt64" / "gcc-libs" / "COPYING").is_file())
+            self.assertTrue((stage / "licenses" / "mingw-ucrt64" / "winpthreads" / "COPYING").is_file())
 
     def test_runtime_smoke_chooses_exact_library_names(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
