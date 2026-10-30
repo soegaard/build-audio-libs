@@ -18,6 +18,10 @@ SPEC = importlib.util.spec_from_file_location("audio_build", ROOT / "scripts" / 
 assert SPEC and SPEC.loader
 BUILD = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(BUILD)
+SMOKE_SPEC = importlib.util.spec_from_file_location("smoke_runtime", ROOT / "tests" / "smoke_runtime.py")
+assert SMOKE_SPEC and SMOKE_SPEC.loader
+SMOKE = importlib.util.module_from_spec(SMOKE_SPEC)
+SMOKE_SPEC.loader.exec_module(SMOKE)
 
 
 class OrchestrationTests(unittest.TestCase):
@@ -90,6 +94,19 @@ class OrchestrationTests(unittest.TestCase):
             BUILD.configure_command(source, "x86_64-linux", ["--prefix=out"]),
             ["source/configure", "--prefix=out"],
         )
+        windows_source = Path("D:/build/source")
+        self.assertEqual(
+            BUILD.configure_command(windows_source, "x86_64-win32", ["--prefix=out"]),
+            ["sh", "/d/build/source/configure", "--prefix=out"],
+        )
+
+    def test_runtime_smoke_chooses_exact_library_names(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            library = Path(directory)
+            for name in ("libFLAC++.so", "libFLAC.so", "libsoxr-lsr.so", "libsoxr.so"):
+                (library / name).touch()
+            self.assertEqual(SMOKE.library_for(library, "FLAC").name, "libFLAC.so")
+            self.assertEqual(SMOKE.library_for(library, "soxr").name, "libsoxr.so")
 
     def test_download_retries_after_a_temporary_error(self) -> None:
         content = b"source archive"

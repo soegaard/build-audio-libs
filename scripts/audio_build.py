@@ -379,6 +379,9 @@ def configure_command(source: Path, target: str, options: list[str]) -> list[str
     if target_config(target)["os"] == "windows":
         # Python on the hosted Windows runner cannot directly run an MSYS
         # shell script, even when this program is called from an MSYS shell.
+        windows_path = re.fullmatch(r"([A-Za-z]):/(.*)", script.replace("\\", "/"))
+        if windows_path:
+            script = f"/{windows_path.group(1).lower()}/{windows_path.group(2)}"
         return ["sh", script, *options]
     return [script, *options]
 
@@ -726,13 +729,15 @@ def audit_target(target: str, stage: Path | None = None) -> Path:
         key = shared.relative_to(stage).as_posix()
         if system == "macosx":
             description = capture(["file", "-b", str(shared)])
-            details = capture(["otool", "-L", str(shared)])
+            # otool prints the inspected file as its first line. That path is
+            # expected to be inside the build work directory, not a load path.
+            details = "\n".join(capture(["otool", "-L", str(shared)]).splitlines()[1:])
             load_commands = capture(["otool", "-l", str(shared)])
             if "arm64" not in description:
                 report["errors"].append(f"{key}: not arm64 ({description})")
             if "minos 11.0" not in load_commands:
                 report["errors"].append(f"{key}: does not declare macOS 11.0 minimum")
-            dependencies = [line.strip().split(" ", 1)[0] for line in details.splitlines()[1:]]
+            dependencies = [line.strip().split(" ", 1)[0] for line in details.splitlines()]
             for dependency in dependencies:
                 base = Path(dependency).name.lower()
                 if dependency.startswith("/usr/lib/") or dependency.startswith("/System/Library/"):

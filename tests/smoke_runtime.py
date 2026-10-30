@@ -26,11 +26,28 @@ REQUIRED_SYMBOLS = {
     "ao": "ao_initialize",
 }
 
+LIBRARY_PREFIXES = {
+    "avutil": ("libavutil", "avutil"), "avcodec": ("libavcodec", "avcodec"),
+    "avformat": ("libavformat", "avformat"), "swresample": ("libswresample", "swresample"),
+    "FLAC": ("libFLAC",), "mpg123": ("libmpg123",), "soxr": ("libsoxr",),
+    "tag_c": ("libtag_c",), "opus": ("libopus",), "opusfile": ("libopusfile",),
+    "opusenc": ("libopusenc",), "ogg": ("libogg",), "ao": ("libao",),
+}
+
 
 def library_for(directory: Path, stem: str) -> Path:
     candidates = sorted(directory.glob(f"*{stem}*.dylib"))
     candidates += sorted(directory.glob(f"*{stem}*.so*"))
     candidates += sorted(directory.glob(f"*{stem}*.dll"))
+    prefixes = LIBRARY_PREFIXES[stem]
+    candidates = [
+        candidate for candidate in candidates
+        if any(
+            candidate.name == f"{prefix}.dll"
+            or candidate.name.startswith(prefix + ("-" if candidate.suffix.lower() == ".dll" else "."))
+            for prefix in prefixes
+        )
+    ]
     if not candidates:
         raise RuntimeError(f"missing library containing {stem}")
     return candidates[0]
@@ -55,7 +72,8 @@ def main() -> int:
     order = ["ogg", "opus", "FLAC", "mpg123", "soxr", "tag_c", "opusfile", "opusenc", "ao", "avutil", "swresample", "avcodec", "avformat"]
     for stem in order:
         path = library_for(library, stem)
-        handle = ctypes.CDLL(str(path))
+        mode = getattr(ctypes, "RTLD_GLOBAL", 0) if stem == "ao" else 0
+        handle = ctypes.CDLL(str(path), mode=mode)
         symbol = REQUIRED_SYMBOLS[stem]
         getattr(handle, symbol)
         loaded[stem] = handle
