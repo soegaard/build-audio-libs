@@ -49,6 +49,7 @@ def main() -> int:
     if hasattr(os, "add_dll_directory"):
         os.add_dll_directory(str(library))
     loaded = {}
+    loaded_paths = {}
     # Load dependency leaves before users so Windows and macOS cannot hide a
     # missing direct dependency through an unrelated host installation.
     order = ["ogg", "opus", "FLAC", "mpg123", "soxr", "tag_c", "opusfile", "opusenc", "ao", "avutil", "swresample", "avcodec", "avformat"]
@@ -57,7 +58,8 @@ def main() -> int:
         handle = ctypes.CDLL(str(path))
         symbol = REQUIRED_SYMBOLS[stem]
         getattr(handle, symbol)
-        loaded[stem] = path
+        loaded[stem] = handle
+        loaded_paths[stem] = path
     # The libao static file and null drivers must work without hardware.
     ao = loaded["ao"]
     ao.ao_initialize()
@@ -66,7 +68,7 @@ def main() -> int:
     if ffmpeg_major != 62:
         raise RuntimeError(f"wrong libavcodec ABI major: {ffmpeg_major}, expected 62")
     print("loaded runtime libraries:")
-    for stem, path in loaded.items():
+    for stem, path in loaded_paths.items():
         print(f"  {stem}: {path}")
     return 0
 

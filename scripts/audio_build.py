@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -191,13 +192,18 @@ def fetch_record(record: dict[str, Any]) -> None:
         temporary.unlink()
     print(f"fetching {record['name']} {record['version']}")
     request = urllib.request.Request(record["archive"], headers={"User-Agent": "build-audio-libs/1"})
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as output:
-            shutil.copyfileobj(response, output)
-    except OSError as exc:
-        with contextlib.suppress(FileNotFoundError):
-            temporary.unlink()
-        fail(f"download failed for {record['name']}: {exc}")
+    for attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as output:
+                shutil.copyfileobj(response, output)
+            break
+        except OSError as exc:
+            with contextlib.suppress(FileNotFoundError):
+                temporary.unlink()
+            if attempt == 3:
+                fail(f"download failed for {record['name']} after {attempt} attempts: {exc}")
+            print(f"download attempt {attempt} failed; retrying", flush=True)
+            time.sleep(attempt)
     temporary.replace(destination)
     verify_archive(record)
     print(f"verified {destination.name}")
@@ -306,6 +312,9 @@ def cmake_options(target: str, prefix: Path) -> list[str]:
         "-DCMAKE_BUILD_TYPE=Release",
         "-DBUILD_SHARED_LIBS=ON",
         "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+        # Some pinned releases request CMake 2.x compatibility. CMake 4
+        # requires an explicit policy version for those supported releases.
+        "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
         "-DCMAKE_FIND_USE_PACKAGE_ROOT_PATH=FALSE",
         "-DCMAKE_IGNORE_PREFIX_PATH=/opt/homebrew;/usr/local/homebrew",
     ]
@@ -345,9 +354,7 @@ def build_cmake(name: str, source: Path, target: str, prefix: Path, env: dict[st
     if name == "zlib":
         extra = ["-DZLIB_BUILD_EXAMPLES=OFF"]
     elif name == "libogg":
-        # libogg 1.3.5 declares CMake 2.x compatibility. CMake 4 requires
-        # this explicit lower policy bound for that supported old release.
-        extra = ["-DCMAKE_POLICY_VERSION_MINIMUM=3.5", "-DINSTALL_DOCS=OFF"]
+        extra = ["-DINSTALL_DOCS=OFF"]
     elif name == "opus":
         extra = ["-DOPUS_BUILD_PROGRAMS=OFF", "-DOPUS_BUILD_TESTING=OFF"]
     elif name == "flac":
@@ -668,6 +675,15 @@ def library_matches_stem(path: Path, stem: str, system: str) -> bool:
     return name.startswith(f"{normalized_stem}.")
 
 
+def architecture_matches(description: str, architecture: str) -> bool:
+    """Accept equivalent architecture names printed by binary tools."""
+    aliases = {
+        "x86_64": ("x86_64", "x86-64"),
+        "aarch64": ("aarch64", "arm64"),
+    }
+    return any(name in description.lower() for name in aliases.get(architecture, (architecture,)))
+
+
 def audit_target(target: str, stage: Path | None = None) -> Path:
     config = target_config(target)
     stage = stage or (WORK / "stage" / target)
@@ -707,7 +723,7 @@ def audit_target(target: str, stage: Path | None = None) -> Path:
             description = capture(["file", "-b", str(shared)])
             details = capture(["readelf", "-d", str(shared)])
             versions = capture(["readelf", "--version-info", str(shared)])
-            if config["arch"] not in description:
+            if not architecture_matches(description, config["arch"]):
                 report["errors"].append(f"{key}: wrong architecture ({description})")
             if "$ORIGIN" not in details:
                 report["errors"].append(f"{key}: missing $ORIGIN RPATH")

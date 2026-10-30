@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import io
 import json
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,6 +74,27 @@ class OrchestrationTests(unittest.TestCase):
         self.assertTrue(BUILD.library_matches_stem(Path("libsoxr.so.0"), "libsoxr", "linux"))
         self.assertFalse(BUILD.library_matches_stem(Path("libsoxr-lsr.so.0"), "libsoxr", "linux"))
         self.assertTrue(BUILD.library_matches_stem(Path("avcodec-62.dll"), "libavcodec", "windows"))
+
+    def test_architecture_matching_accepts_file_tool_names(self) -> None:
+        self.assertTrue(BUILD.architecture_matches("ELF 64-bit x86-64", "x86_64"))
+        self.assertTrue(BUILD.architecture_matches("ELF 64-bit aarch64", "aarch64"))
+        self.assertFalse(BUILD.architecture_matches("ELF 64-bit aarch64", "x86_64"))
+
+    def test_download_retries_after_a_temporary_error(self) -> None:
+        content = b"source archive"
+        record = {
+            "name": "example", "version": "1.0", "archive": "https://example.invalid/source.tar.gz",
+            "filename": "source.tar.gz", "sha256": hashlib.sha256(content).hexdigest(),
+        }
+        original = BUILD.WORK
+        with tempfile.TemporaryDirectory() as directory:
+            BUILD.WORK = Path(directory)
+            with mock.patch.object(BUILD.urllib.request, "urlopen", side_effect=[OSError("temporary"), io.BytesIO(content)]) as open_url:
+                with mock.patch.object(BUILD.time, "sleep"):
+                    BUILD.fetch_record(record)
+            self.assertEqual(open_url.call_count, 2)
+            self.assertEqual(BUILD.cache_path(record).read_bytes(), content)
+        BUILD.WORK = original
 
 
 if __name__ == "__main__":
