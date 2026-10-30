@@ -397,6 +397,11 @@ def build_autotools(name: str, source: Path, target: str, prefix: Path, env: dic
         # dladdr is part of the Linux plugin-path implementation.
         build_env = env.copy()
         build_env["CPPFLAGS"] = "-D_GNU_SOURCE " + env["CPPFLAGS"]
+    elif name == "libao" and system == "windows":
+        # New MinGW headers declare KSDATAFORMAT_SUBTYPE_PCM in libksuser.
+        # libao's WMM configure check adds winmm but misses this library.
+        build_env = env.copy()
+        build_env["LIBS"] = "-lksuser " + env.get("LIBS", "")
     if name == "libao":
         # The pinned upstream tag is a source checkout without generated
         # configure files. Bootstrap only from its checked-in Autotools input.
@@ -827,6 +832,10 @@ def test_target(target: str) -> None:
         fail("Racket is required for the pinned consumer binding test")
     stubs = ROOT / "tests" / "racket-stubs"
     binding_env = env.copy()
+    # Loader tracing is useful for the native smoke test but makes Racket's
+    # output needlessly large and is not part of the binding test.
+    binding_env.pop("DYLD_PRINT_LIBRARIES", None)
+    binding_env.pop("LD_DEBUG", None)
     binding_env["PLTCOLLECTS"] = os.pathsep.join([str(stubs), racket_collections])
     run(["racket", str(ROOT / "tests" / "racket_binding_smoke.rkt"), str(consumer)], env=binding_env)
     print(f"package test completed from isolated directory: {stage}")
