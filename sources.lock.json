@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "consumer": {
+    "name": "racket-audio",
+    "repository": "https://git.dijkewijk.nl/hans/racket-audio.git",
+    "commit": "b1c6e3976a5ca63c5fa41564eea31c80d110d06e",
+    "license": "GPL-2.0-or-later",
+    "test_dependencies": {
+      "racket": "8.12",
+      "note": "The integration runner uses only the pinned consumer source and Racket distribution libraries. It does not call raco pkg install or download package dependencies."
+    }
+  },
+  "sources": [
+    {
+      "name": "zlib",
+      "version": "1.3.1",
+      "archive": "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+      "filename": "zlib-1.3.1.tar.gz",
+      "sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
+      "license": "Zlib",
+      "dependencies": [],
+      "recipe": "cmake:zlib",
+      "patches": []
+    },
+    {
+      "name": "libogg",
+      "version": "1.3.5",
+      "archive": "https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.xz",
+      "filename": "libogg-1.3.5.tar.xz",
+      "sha256": "c4d91be36fc8e54deae7575241e03f4211eb102afb3fc0775fbbc1b740016705",
+      "license": "BSD-3-Clause",
+      "dependencies": [],
+      "recipe": "cmake:libogg",
+      "patches": []
+    },
+    {
+      "name": "opus",
+      "version": "1.5.2",
+      "archive": "https://github.com/xiph/opus/releases/download/v1.5.2/opus-1.5.2.tar.gz",
+      "filename": "opus-1.5.2.tar.gz",
+      "sha256": "65c1d2f78b9f2fb20082c38cbe47c951ad5839345876e46941612ee87f9a7ce1",
+      "license": "BSD-3-Clause",
+      "dependencies": [],
+      "recipe": "cmake:opus",
+      "patches": []
+    },
+    {
+      "name": "flac",
+      "version": "1.5.0",
+      "archive": "https://github.com/xiph/flac/releases/download/1.5.0/flac-1.5.0.tar.xz",
+      "filename": "flac-1.5.0.tar.xz",
+      "sha256": "f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920",
+      "license": "BSD-3-Clause",
+      "dependencies": [],
+      "recipe": "cmake:flac",
+      "patches": []
+    },
+    {
+      "name": "mpg123",
+      "version": "1.33.3",
+      "archive": "https://www.mpg123.de/download/mpg123-1.33.3.tar.bz2",
+      "filename": "mpg123-1.33.3.tar.bz2",
+      "sha256": "6a0c6472dd156e213c2068f40115ebbb73978c2d873e66bae2a250e2d2198d26",
+      "license": "LGPL-2.1-or-later",
+      "dependencies": [],
+      "recipe": "autotools:mpg123",
+      "patches": []
+    },
+    {
+      "name": "soxr",
+      "version": "0.1.3",
+      "archive": "https://github.com/chirlu/soxr/archive/refs/tags/0.1.3.tar.gz",
+      "filename": "soxr-0.1.3.tar.gz",
+      "sha256": "db6ca1b1e8405c6ef92f8294fc123d910abf0a114003b3f0f13fa57a95fd62d0",
+      "license": "LGPL-2.1-or-later",
+      "dependencies": [],
+      "recipe": "cmake:soxr",
+      "patches": []
+    },
+    {
+      "name": "utfcpp",
+      "version": "4.0.6",
+      "archive": "https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.6.tar.gz",
+      "filename": "utfcpp-4.0.6.tar.gz",
+      "sha256": "6920a6a5d6a04b9a89b2a89af7132f8acefd46e0c2a7b190350539e9213816c0",
+      "license": "BSL-1.0",
+      "dependencies": [],
+      "recipe": "headers:utfcpp",
+      "patches": []
+    },
+    {
+      "name": "taglib",
+      "version": "2.1",
+      "archive": "https://github.com/taglib/taglib/releases/download/v2.1/taglib-2.1.tar.gz",
+      "filename": "taglib-2.1.tar.gz",
+      "sha256": "95b788b39eaebab41f7e6d1c1d05ceee01a5d1225e4b6d11ed8976e96ba90b0c",
+      "license": "LGPL-2.1-or-later OR MPL-1.1",
+      "dependencies": ["zlib", "utfcpp"],
+      "recipe": "cmake:taglib",
+      "patches": []
+    },
+    {
+      "name": "opusfile",
+      "version": "0.12",
+      "archive": "https://github.com/xiph/opusfile/releases/download/v0.12/opusfile-0.12.tar.gz",
+      "filename": "opusfile-0.12.tar.gz",
+      "sha256": "118d8601c12dd6a44f52423e68ca9083cc9f2bfe72da7a8c1acb22a80ae3550b",
+      "license": "BSD-3-Clause",
+      "dependencies": ["libogg", "opus"],
+      "recipe": "autotools:opusfile",
+      "patches": []
+    },
+    {
+      "name": "opusenc",
+      "version": "0.2.1",
+      "archive": "https://downloads.xiph.org/releases/opus/libopusenc-0.2.1.tar.gz",
+      "filename": "libopusenc-0.2.1.tar.gz",
+      "sha256": "8298db61a8d3d63e41c1a80705baa8ce9ff3f50452ea7ec1c19a564fe106cbb9",
+      "license": "BSD-3-Clause",
+      "dependencies": ["libogg", "opus"],
+      "recipe": "autotools:opusenc",
+      "patches": []
+    },
+    {
+      "name": "libao",
+      "version": "1.2.2",
+      "archive": "https://github.com/xiph/libao/archive/refs/tags/1.2.2.tar.gz",
+      "filename": "libao-1.2.2.tar.gz",
+      "sha256": "df8a6d0e238feeccb26a783e778716fb41a801536fe7b6fce068e313c0e2bf4d",
+      "license": "GPL-2.0-or-later",
+      "dependencies": [],
+      "recipe": "autotools:libao",
+      "patches": ["patches/libao-relocatable-plugin-path.patch"]
+    },
+    {
+      "name": "ffmpeg",
+      "version": "8.0.1",
+      "archive": "https://ffmpeg.org/releases/ffmpeg-8.0.1.tar.xz",
+      "filename": "ffmpeg-8.0.1.tar.xz",
+      "sha256": "05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41",
+      "license": "LGPL-2.1-or-later",
+      "dependencies": ["zlib"],
+      "recipe": "configure:ffmpeg-audio",
+      "patches": []
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "targets": {
+    "aarch64-macosx": {
+      "os": "macosx",
+      "arch": "arm64",
+      "runner": "macos-26",
+      "deployment_target": "11.0",
+      "build_host": "GitHub macos-26 arm64; Xcode SDK supplied by the image",
+      "tested_on": "macOS 26.5 arm64 during local development; CI records the exact image and Xcode version",
+      "system_library_allowlist": ["/usr/lib/libSystem.B.dylib", "/System/Library/Frameworks/AudioToolbox.framework", "/System/Library/Frameworks/CoreAudio.framework", "/System/Library/Frameworks/CoreFoundation.framework", "/System/Library/Frameworks/CoreServices.framework", "/System/Library/Frameworks/CoreMIDI.framework", "/System/Library/Frameworks/IOKit.framework", "/System/Library/Frameworks/Security.framework"],
+      "notes": "The bundle is arm64-only. Every library is built with MACOSX_DEPLOYMENT_TARGET=11.0."
+    },
+    "x86_64-linux": {
+      "os": "linux",
+      "arch": "x86_64",
+      "runner": "ubuntu-22.04",
+      "glibc_baseline": "2.35",
+      "glibcxx_baseline": "3.4.29",
+      "build_host": "GitHub ubuntu-22.04 x64",
+      "tested_on": "CI is the supported test environment; local runs record their distribution and compiler",
+      "system_library_allowlist": ["libc.so.6", "libm.so.6", "libdl.so.2", "libpthread.so.0", "librt.so.1", "libgcc_s.so.1", "libstdc++.so.6", "ld-linux-x86-64.so.2", "libasound.so.2"],
+      "notes": "Built natively on Ubuntu 22.04, which sets the glibc 2.35 baseline. glibc is never bundled."
+    },
+    "aarch64-linux": {
+      "os": "linux",
+      "arch": "aarch64",
+      "runner": "ubuntu-22.04-arm",
+      "glibc_baseline": "2.35",
+      "glibcxx_baseline": "3.4.29",
+      "build_host": "GitHub ubuntu-22.04-arm arm64",
+      "tested_on": "CI is the supported test environment; local runs record their distribution and compiler",
+      "system_library_allowlist": ["libc.so.6", "libm.so.6", "libdl.so.2", "libpthread.so.0", "librt.so.1", "libgcc_s.so.1", "libstdc++.so.6", "ld-linux-aarch64.so.1", "libasound.so.2"],
+      "notes": "Use the native hosted ARM runner. glibc is never bundled."
+    },
+    "x86_64-win32": {
+      "os": "windows",
+      "arch": "x86_64",
+      "runner": "windows-2022",
+      "runtime_baseline": "Windows 10 / Server 2016 and later; UCRT is supplied by the operating system",
+      "build_host": "GitHub windows-2022 x64 with the pinned MSYS2 UCRT64 setup action",
+      "tested_on": "CI on Windows Server 2022",
+      "system_library_allowlist": ["KERNEL32.dll", "ADVAPI32.dll", "USER32.dll", "SHELL32.dll", "OLE32.dll", "WINMM.dll", "WS2_32.dll", "bcrypt.dll", "api-ms-win-crt-*.dll", "ucrtbase.dll", "VCRUNTIME140.dll"],
+      "notes": "All non-system DLLs are built from this lock file. FFmpeg 8 produces the consumer-required 60/62/62/6 DLL ABI names."
+    }
+  }
+}

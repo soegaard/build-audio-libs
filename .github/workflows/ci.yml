@@ -1,0 +1,82 @@
+name: build native audio libraries
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Validate source lock and orchestration tests
+        run: |
+          python3 scripts/audio_build.py validate
+          python3 -m unittest discover -s tests -v
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-macosx
+            runner: macos-26
+          - target: x86_64-linux
+            runner: ubuntu-22.04
+          - target: aarch64-linux
+            runner: ubuntu-22.04-arm
+          - target: x86_64-win32
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up MSYS2 UCRT64 build tools
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-nasm
+            make autoconf automake libtool patch git
+      - name: Install Unix build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes autoconf automake libtool make cmake ninja-build pkg-config patchelf libasound2-dev nasm
+      - name: Cache verified source archives
+        if: runner.os != 'Windows'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .work/downloads
+          key: audio-sources-${{ matrix.target }}-${{ runner.os }}-${{ hashFiles('sources.lock.json', 'platforms.json', 'patches/**', 'scripts/**') }}
+      - name: Build, audit, test, and package
+        if: runner.os != 'Windows'
+        run: python3 scripts/audio_build.py all --target '${{ matrix.target }}' --version '0.0.0-ci' --clean
+      - name: Build, audit, test, and package
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python scripts/audio_build.py all --target '${{ matrix.target }}' --version '0.0.0-ci' --clean
+      - name: Upload package, audit, and build reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: racket-audio-${{ matrix.target }}
+          path: |
+            dist/*-${{ matrix.target }}-0.0.0-ci.*
+            reports/${{ matrix.target }}/
+            .work/stage/${{ matrix.target }}/runtime-manifest.json
+            .work/stage/${{ matrix.target }}/provenance.json
+          if-no-files-found: error
