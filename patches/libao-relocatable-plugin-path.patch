@@ -1,19 +1,18 @@
 --- a/src/audio_out.c
 +++ b/src/audio_out.c
-@@ -61,6 +61,51 @@
+@@ -61,6 +61,50 @@
  #ifndef SHARED_LIB_EXT
  #define SHARED_LIB_EXT ".so"
  #endif
 +
 +/*
 + * The upstream path is an absolute configure-time path. That does not work
-+ * after a package is moved. On macOS, derive the path from libao itself.
-+ * Other systems keep the normal configured path and are made relocatable by
-+ * the staging RPATH rules.
++ * after a package is moved. On Unix, derive the path from libao itself.
++ * The staging RPATH rules keep the plugins relocatable as well.
 + */
 +static const char *_ao_runtime_path(int plugin_directory)
 +{
-+#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__linux__)
 +        static char library_path[PATH_MAX];
 +        static char plugin_path[PATH_MAX];
 +        Dl_info image;

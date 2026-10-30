@@ -80,6 +80,17 @@ class OrchestrationTests(unittest.TestCase):
         self.assertTrue(BUILD.architecture_matches("ELF 64-bit aarch64", "aarch64"))
         self.assertFalse(BUILD.architecture_matches("ELF 64-bit aarch64", "x86_64"))
 
+    def test_windows_configure_scripts_run_through_sh(self) -> None:
+        source = Path("source")
+        self.assertEqual(
+            BUILD.configure_command(source, "x86_64-win32", ["--prefix=out"]),
+            ["sh", "source/configure", "--prefix=out"],
+        )
+        self.assertEqual(
+            BUILD.configure_command(source, "x86_64-linux", ["--prefix=out"]),
+            ["source/configure", "--prefix=out"],
+        )
+
     def test_download_retries_after_a_temporary_error(self) -> None:
         content = b"source archive"
         record = {

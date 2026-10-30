@@ -373,15 +373,37 @@ def build_cmake(name: str, source: Path, target: str, prefix: Path, env: dict[st
     run(["cmake", "--install", str(build)], env=env)
 
 
+def configure_command(source: Path, target: str, options: list[str]) -> list[str]:
+    """Return a command that can run a configure script."""
+    script = str(source / "configure")
+    if target_config(target)["os"] == "windows":
+        # Python on the hosted Windows runner cannot directly run an MSYS
+        # shell script, even when this program is called from an MSYS shell.
+        return ["sh", script, *options]
+    return [script, *options]
+
+
 def build_autotools(name: str, source: Path, target: str, prefix: Path, env: dict[str, str]) -> None:
     build = WORK / "build" / target / name
     if build.exists():
         shutil.rmtree(build)
     build.mkdir(parents=True)
+    system = target_config(target)["os"]
+    build_env = env
+    if name == "libao" and system == "linux":
+        # dladdr is part of the Linux plugin-path implementation.
+        build_env = env.copy()
+        build_env["CPPFLAGS"] = "-D_GNU_SOURCE " + env["CPPFLAGS"]
     if name == "libao":
         # The pinned upstream tag is a source checkout without generated
         # configure files. Bootstrap only from its checked-in Autotools input.
-        run(["autoreconf", "--install", "--force"], cwd=source, env=env)
+        if system == "windows":
+            run(["sh", "-lc", "autoreconf --install --force"], cwd=source, env=env)
+        else:
+            bootstrap_env = env.copy()
+            if system == "macosx":
+                bootstrap_env["LIBTOOLIZE"] = "glibtoolize"
+            run(["autoreconf", "--install", "--force"], cwd=source, env=bootstrap_env)
     options = [f"--prefix={prefix}", "--enable-shared", "--disable-static"]
     if name == "mpg123":
         options += ["--with-default-audio=dummy", "--disable-components", "--enable-libmpg123"]
@@ -391,16 +413,15 @@ def build_autotools(name: str, source: Path, target: str, prefix: Path, env: dic
         options += ["--disable-doc"]
     elif name == "libao":
         options += ["--enable-plugins", "--disable-esd", "--disable-pulse", "--disable-arts", "--disable-nas", "--disable-roar", "--disable-oss"]
-        system = target_config(target)["os"]
         if system == "macosx":
             options += ["--enable-macosx"]
         elif system == "linux":
             options += ["--enable-alsa"]
     else:
         fail(f"no Autotools recipe for {name}")
-    run([str(source / "configure"), *options], cwd=build, env=env)
-    run(["make", f"-j{jobs()}"], cwd=build, env=env)
-    run(["make", "install"], cwd=build, env=env)
+    run(configure_command(source, target, options), cwd=build, env=build_env)
+    run(["make", f"-j{jobs()}"], cwd=build, env=build_env)
+    run(["make", "install"], cwd=build, env=build_env)
 
 
 def build_headers(source: Path, prefix: Path) -> None:
@@ -419,7 +440,7 @@ def build_ffmpeg(source: Path, target: str, prefix: Path, env: dict[str, str]) -
         shutil.rmtree(build)
     build.mkdir(parents=True)
     configuration = [
-        str(source / "configure"), f"--prefix={prefix}",
+        f"--prefix={prefix}",
         "--enable-shared", "--disable-static", "--disable-programs", "--disable-doc",
         "--disable-debug", "--disable-autodetect", "--disable-network", "--disable-avdevice",
         "--disable-avfilter", "--enable-small", "--enable-zlib",
@@ -434,7 +455,7 @@ def build_ffmpeg(source: Path, target: str, prefix: Path, env: dict[str, str]) -
         configuration += ["--arch=arm64", "--cc=clang", "--install-name-dir=@loader_path"]
     elif config["os"] == "windows":
         configuration += ["--target-os=mingw32", "--arch=x86_64"]
-    run(configuration, cwd=build, env=env)
+    run(configure_command(source, target, configuration), cwd=build, env=env)
     run(["make", f"-j{jobs()}"], cwd=build, env=env)
     run(["make", "install"], cwd=build, env=env)
     config_mak = build / "ffbuild" / "config.mak"
