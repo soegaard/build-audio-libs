@@ -413,7 +413,7 @@ def build_ffmpeg(source: Path, target: str, prefix: Path, env: dict[str, str]) -
         str(source / "configure"), f"--prefix={prefix}",
         "--enable-shared", "--disable-static", "--disable-programs", "--disable-doc",
         "--disable-debug", "--disable-autodetect", "--disable-network", "--disable-avdevice",
-        "--disable-avfilter", "--disable-postproc", "--enable-small", "--enable-zlib",
+        "--disable-avfilter", "--enable-small", "--enable-zlib",
         "--enable-protocol=file,pipe,data",
         "--enable-demuxer=aac,ac3,asf,flac,matroska,mov,mp3,ogg,wav",
         "--enable-decoder=aac,ac3,alac,flac,mp3*,opus,pcm_*,vorbis,wma*",
