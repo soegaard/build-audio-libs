@@ -65,6 +65,13 @@ class OrchestrationTests(unittest.TestCase):
         self.assertEqual(lock["schema"], 1)
         BUILD.validate_lock()
 
+    def test_required_export_matching_ignores_related_library_names(self) -> None:
+        self.assertTrue(BUILD.library_matches_stem(Path("libFLAC.so.12"), "libFLAC", "linux"))
+        self.assertFalse(BUILD.library_matches_stem(Path("libFLAC++.so.11"), "libFLAC", "linux"))
+        self.assertTrue(BUILD.library_matches_stem(Path("libsoxr.so.0"), "libsoxr", "linux"))
+        self.assertFalse(BUILD.library_matches_stem(Path("libsoxr-lsr.so.0"), "libsoxr", "linux"))
+        self.assertTrue(BUILD.library_matches_stem(Path("avcodec-62.dll"), "libavcodec", "windows"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -345,7 +345,9 @@ def build_cmake(name: str, source: Path, target: str, prefix: Path, env: dict[st
     if name == "zlib":
         extra = ["-DZLIB_BUILD_EXAMPLES=OFF"]
     elif name == "libogg":
-        extra = ["-DINSTALL_DOCS=OFF"]
+        # libogg 1.3.5 declares CMake 2.x compatibility. CMake 4 requires
+        # this explicit lower policy bound for that supported old release.
+        extra = ["-DCMAKE_POLICY_VERSION_MINIMUM=3.5", "-DINSTALL_DOCS=OFF"]
     elif name == "opus":
         extra = ["-DOPUS_BUILD_PROGRAMS=OFF", "-DOPUS_BUILD_TESTING=OFF"]
     elif name == "flac":
@@ -654,6 +656,18 @@ def allowed_dependency(name: str, allowlist: Iterable[str]) -> bool:
     return any(fnmatch.fnmatchcase(lowered, Path(value).name.lower()) for value in allowlist)
 
 
+def library_matches_stem(path: Path, stem: str, system: str) -> bool:
+    """Return whether a library file is the runtime library for ``stem``."""
+    name = path.name.lower()
+    normalized_stem = stem.lower()
+    if system == "windows":
+        stems = [normalized_stem]
+        if normalized_stem.startswith("libav"):
+            stems.append(normalized_stem[3:])
+        return any(name == f"{value}.dll" or name.startswith(f"{value}-") for value in stems)
+    return name.startswith(f"{normalized_stem}.")
+
+
 def audit_target(target: str, stage: Path | None = None) -> Path:
     config = target_config(target)
     stage = stage or (WORK / "stage" / target)
@@ -668,6 +682,10 @@ def audit_target(target: str, stage: Path | None = None) -> Path:
     staged_names = {path.name.lower() for path in shared_files(library, system)}
     allowed_names = config["system_library_allowlist"]
     for shared in shared_files(library, system):
+        # Link names are needed at runtime, but auditing them repeats the
+        # binary check with `file` reporting only the link destination.
+        if shared.is_symlink():
+            continue
         key = shared.relative_to(stage).as_posix()
         if system == "macosx":
             description = capture(["file", "-b", str(shared)])
@@ -718,7 +736,7 @@ def audit_target(target: str, stage: Path | None = None) -> Path:
         if any(value in details for value in forbidden):
             report["errors"].append(f"{key}: contains a build or Homebrew path")
         for stem, symbol in REQUIRED_EXPORTS.items():
-            if shared.name.startswith(stem) and symbol not in symbols:
+            if library_matches_stem(shared, stem, system) and symbol not in symbols:
                 report["errors"].append(f"{key}: missing required export {symbol}")
         report["files"][key] = {"file": description, "dependencies": details, "exports": symbols}
     report_path = REPORTS / target / "audit.json"
