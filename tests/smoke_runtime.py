@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -44,7 +45,14 @@ def library_for(directory: Path, stem: str) -> Path:
         candidate for candidate in candidates
         if any(
             candidate.name == f"{prefix}.dll"
-            or candidate.name.startswith(prefix + ("-" if candidate.suffix.lower() == ".dll" else "."))
+            or (
+                candidate.suffix.lower() == ".dll"
+                and re.fullmatch(rf"{re.escape(prefix)}-\d+(?:[.-]\d+)*\.dll", candidate.name)
+            )
+            or (
+                candidate.suffix.lower() != ".dll"
+                and candidate.name.startswith(prefix + ".")
+            )
             for prefix in prefixes
         )
     ]

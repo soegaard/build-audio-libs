@@ -156,10 +156,13 @@ class OrchestrationTests(unittest.TestCase):
     def test_runtime_smoke_chooses_exact_library_names(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             library = Path(directory)
-            for name in ("libFLAC++.so", "libFLAC.so", "libsoxr-lsr.so", "libsoxr.so"):
+            for name in ("libFLAC++.so", "libFLAC.so", "libsoxr-lsr.so", "libsoxr.so", "libsoxr-lsr.dll", "libsoxr.dll"):
                 (library / name).touch()
             self.assertEqual(SMOKE.library_for(library, "FLAC").name, "libFLAC.so")
             self.assertEqual(SMOKE.library_for(library, "soxr").name, "libsoxr.so")
+            (library / "libsoxr.so").unlink()
+            (library / "libsoxr-lsr.so").unlink()
+            self.assertEqual(SMOKE.library_for(library, "soxr").name, "libsoxr.dll")
 
     def test_download_retries_after_a_temporary_error(self) -> None:
         content = b"source archive"
