@@ -129,10 +129,18 @@ class OrchestrationTests(unittest.TestCase):
             stage = Path(directory)
             library = stage / "lib"
             library.mkdir()
-            for name in ("libao-4.dll", "libzlib1.dll", "libogg.dll"):
+            for name in (
+                "libao-4.dll", "libzlib1.dll", "libogg.dll", "libopus.dll",
+                "libopusfile-0.dll", "libopusenc-0.dll", "libmpg123-0.dll",
+            ):
                 (library / name).write_bytes(name.encode())
             BUILD.windows_aliases(stage)
             self.assertEqual((library / "libao-1.2.2.dll").read_bytes(), b"libao-4.dll")
+            self.assertEqual((library / "opus.dll").read_bytes(), b"libopus.dll")
+            self.assertEqual((library / "opusfile.dll").read_bytes(), b"libopusfile-0.dll")
+            self.assertEqual((library / "libopusenc.dll").read_bytes(), b"libopusenc-0.dll")
+            self.assertEqual((library / "mpg123.dll").read_bytes(), b"libmpg123-0.dll")
+            self.assertEqual((library / "zlib.dll").read_bytes(), b"libzlib1.dll")
             self.assertEqual((library / "zlib1.dll").read_bytes(), b"libzlib1.dll")
             self.assertEqual((library / "ogg.dll").read_bytes(), b"libogg.dll")
 

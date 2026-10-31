@@ -573,8 +573,13 @@ def windows_aliases(stage: Path) -> None:
         # racket-audio pins this literal historical name. This is an alias to
         # the same DLL, not a substitute for the ABI-sensitive FFmpeg names.
         "libao-1.2.2.dll": candidates[0],
-        # The Windows import names from these upstream builds omit the lib
-        # prefix that their installed DLL filenames use.
+        # The pinned Racket FFI uses these unversioned Windows DLL names.
+        "opus.dll": library / "libopus.dll",
+        "opusfile.dll": library / "libopusfile-0.dll",
+        "libopusenc.dll": library / "libopusenc-0.dll",
+        "mpg123.dll": library / "libmpg123-0.dll",
+        "zlib.dll": library / "libzlib1.dll",
+        # These names are also used by dependent Windows DLLs.
         "zlib1.dll": library / "libzlib1.dll",
         "ogg.dll": library / "libogg.dll",
     }
