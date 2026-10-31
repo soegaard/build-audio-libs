@@ -131,6 +131,7 @@ class OrchestrationTests(unittest.TestCase):
                 self.assertIn("(define collection 'use-pkg-name)", info)
                 self.assertIn("(define install-platform 'windows)", info)
                 self.assertIn('"lib/opus.dll"', info)
+                self.assertNotIn(b"\r\n", (package / "info.rkt").read_bytes())
                 self.assertIn('"lib/ao/plugins-4/ao_null.dll"', info)
 
     def test_racket_install_platform_matches_racket_library_subpaths(self) -> None:
