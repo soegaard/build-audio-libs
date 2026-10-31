@@ -148,7 +148,7 @@ class OrchestrationTests(unittest.TestCase):
         )
         self.assertEqual(
             BUILD.racket_install_platform("aarch64-macosx"),
-            '#rx"^arm64-macosx(?:/|$)"',
+            '#rx"^(?:aarch64|arm64)-macosx(?:/|$)"',
         )
 
     def test_racket_foreign_libraries_include_macos_libao_plugin(self) -> None:

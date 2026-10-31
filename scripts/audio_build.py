@@ -970,6 +970,8 @@ def racket_install_platform(target: str) -> str:
     config = target_config(target)
     if config["os"] == "windows":
         return "'windows"
+    if config["os"] == "macosx" and config["arch"] == "arm64":
+        return '#rx"^(?:aarch64|arm64)-macosx(?:/|$)"'
     return f'#rx"^{config["arch"]}-{config["os"]}(?:/|$)"'
 
 

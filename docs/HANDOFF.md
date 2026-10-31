@@ -47,7 +47,7 @@ therefore writes `0.1` in `info.rkt` for a `0.1.0` release.
 (define pkg-desc "native libraries for racket-audio on TARGET")
 (define pkg-authors '(hans))
 (define license '(GPL-2.0-or-later))
-(define install-platform #rx"^arm64-macosx(?:/|$)")
+(define install-platform #rx"^(?:aarch64|arm64)-macosx(?:/|$)")
 (define copy-foreign-libs
   '("lib/libavutil.60.dylib"
     "lib/libavcodec.62.dylib"
