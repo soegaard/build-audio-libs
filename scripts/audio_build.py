@@ -861,6 +861,21 @@ def isolated_stage(target: str) -> Path:
     return destination
 
 
+def prepare_racket_sound_lib_addon(stage: Path, target: str) -> Path | None:
+    """Create the Windows consumer library directory from an isolated stage."""
+    config = target_config(target)
+    if config["os"] != "windows":
+        return None
+    addon = stage.parent / "racket-addon"
+    if addon.exists():
+        shutil.rmtree(addon)
+    install = addon / "racket-sound-lib"
+    native_libraries = install / f"windows-{config['arch']}"
+    shutil.copytree(stage / "lib", native_libraries, symlinks=True)
+    (install / "version.txt").write_text("(1 1 2)\n", encoding="utf-8")
+    return addon
+
+
 def test_target(target: str) -> None:
     stage = isolated_stage(target)
     audit_target(target, stage)
@@ -897,6 +912,9 @@ def test_target(target: str) -> None:
     binding_env.pop("DYLD_PRINT_LIBRARIES", None)
     binding_env.pop("LD_DEBUG", None)
     binding_env["PLTCOLLECTS"] = os.pathsep.join([str(stubs), racket_collections])
+    addon = prepare_racket_sound_lib_addon(stage, target)
+    if addon:
+        binding_env["PLTADDONDIR"] = str(addon)
     run([racket, str(ROOT / "tests" / "racket_binding_smoke.rkt"), str(consumer)], env=binding_env)
     print(f"package test completed from isolated directory: {stage}")
 

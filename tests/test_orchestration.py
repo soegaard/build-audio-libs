@@ -95,6 +95,19 @@ class OrchestrationTests(unittest.TestCase):
                 with mock.patch.dict(BUILD.os.environ, {"ProgramFiles": directory}, clear=False):
                     self.assertEqual(BUILD.racket_executable("x86_64-win32"), str(racket))
 
+    def test_windows_racket_addon_uses_isolated_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stage = Path(directory) / "isolated-runtime"
+            library = stage / "lib"
+            library.mkdir(parents=True)
+            (library / "libopus.dll").write_bytes(b"native library")
+            addon = BUILD.prepare_racket_sound_lib_addon(stage, "x86_64-win32")
+            self.assertEqual(addon, stage.parent / "racket-addon")
+            assert addon is not None
+            install = addon / "racket-sound-lib"
+            self.assertEqual((install / "version.txt").read_text(encoding="utf-8"), "(1 1 2)\n")
+            self.assertEqual((install / "windows-x86_64" / "libopus.dll").read_bytes(), b"native library")
+
     def test_windows_configure_scripts_run_through_sh(self) -> None:
         source = Path("source")
         self.assertEqual(
