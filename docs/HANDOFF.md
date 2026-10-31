@@ -31,18 +31,20 @@ directory by basename, so list every shared library and each libao driver plugin
 The libao patch deliberately falls back to that flattened directory, 
 while the archive keeps the normal plugin layout for audit and non-Racket users.
 
-Generate `info.rkt` from the staged archive rather than maintaining a manual list. 
-The following template has placeholders that must be replaced with the 
-actual target, version, and files from `runtime-manifest.json`:
+Generate `info.rkt` from the staged archive rather than maintaining a manual list.
+The generated `install-platform` value matches Racket's complete library
+subpath, including a runtime suffix such as `/cs`. The following template has
+placeholders that must be replaced with the actual target, version, and files
+from `runtime-manifest.json`:
 
 ```racket
 #lang info
-(define collection 'multi)
+(define collection 'use-pkg-name)
 (define version "BUNDLE-VERSION")
 (define pkg-desc "native libraries for racket-audio on TARGET")
 (define pkg-authors '(hans))
 (define license '(GPL-2.0-or-later))
-(define install-platform "TARGET")
+(define install-platform #rx"^arm64-macosx(?:/|$)")
 (define copy-foreign-libs
   '("lib/libavutil.60.dylib"
     "lib/libavcodec.62.dylib"

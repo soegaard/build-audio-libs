@@ -953,8 +953,8 @@ def package_target(target: str, version: str) -> Path:
 def racket_install_platform(target: str) -> str:
     config = target_config(target)
     if config["os"] == "windows":
-        return f"win32\\\\{config['arch']}"
-    return f"{config['arch']}-{config['os']}"
+        return "'windows"
+    return f'#rx"^{config["arch"]}-{config["os"]}(?:/|$)"'
 
 
 def write_racket_package_info(target: str, version: str, library_files: list[Path], destination: Path) -> None:
@@ -963,14 +963,16 @@ def write_racket_package_info(target: str, version: str, library_files: list[Pat
     )
     content = f'''#lang info
 
-(define collection 'multi)
+(define collection 'use-pkg-name)
 (define version "{version}")
 (define pkg-desc "native libraries for racket-audio on {target}")
 (define pkg-authors '(hans))
 (define license '(GPL-2.0-or-later))
-(define install-platform "{racket_install_platform(target)}")
+(define install-platform {racket_install_platform(target)})
 (define copy-foreign-libs
-  '({foreign_libraries}))
+  '(
+{foreign_libraries}
+    ))
 (define deps '("base"))
 '''
     (destination / "info.rkt").write_text(content, encoding="utf-8")
@@ -996,12 +998,22 @@ def racket_package_target(target: str, version: str) -> Path:
             shutil.copy2(source, destination / name)
         else:
             fail(f"missing staged package file: {source}")
-    library_files = sorted(
-        path.relative_to(library) for path in shared_files(library, target_config(target)["os"])
-    )
+    library_files = racket_foreign_library_files(library, target_config(target)["os"])
     write_racket_package_info(target, version, library_files, destination)
     print(destination)
     return destination
+
+
+def racket_foreign_library_files(library: Path, system: str) -> list[Path]:
+    """Return staged libraries that Racket must copy to its foreign-lib directory."""
+    files = set(shared_files(library, system))
+    if system == "macosx":
+        plugin_root = library / "ao"
+        files.update(
+            path for path in plugin_root.rglob("*.so")
+            if path.is_file() or path.is_symlink()
+        )
+    return sorted(path.relative_to(library) for path in files)
 
 
 def complete(target: str, version: str, clean: bool) -> Path:

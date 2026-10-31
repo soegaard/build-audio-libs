@@ -128,9 +128,32 @@ class OrchestrationTests(unittest.TestCase):
                 self.assertEqual((package / "lib" / "ao" / "plugins-4" / "ao_null.dll").read_bytes(), b"plugin")
                 self.assertEqual((package / "licenses" / "opus-COPYING").read_text(encoding="utf-8"), "license")
                 info = (package / "info.rkt").read_text(encoding="utf-8")
-                self.assertIn('(define install-platform "win32\\\\x86_64")', info)
+                self.assertIn("(define collection 'use-pkg-name)", info)
+                self.assertIn("(define install-platform 'windows)", info)
                 self.assertIn('"lib/opus.dll"', info)
                 self.assertIn('"lib/ao/plugins-4/ao_null.dll"', info)
+
+    def test_racket_install_platform_matches_racket_library_subpaths(self) -> None:
+        self.assertEqual(BUILD.racket_install_platform("x86_64-win32"), "'windows")
+        self.assertEqual(
+            BUILD.racket_install_platform("x86_64-linux"),
+            '#rx"^x86_64-linux(?:/|$)"',
+        )
+        self.assertEqual(
+            BUILD.racket_install_platform("aarch64-macosx"),
+            '#rx"^arm64-macosx(?:/|$)"',
+        )
+
+    def test_racket_foreign_libraries_include_macos_libao_plugin(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            library = Path(directory) / "lib"
+            library.mkdir()
+            (library / "libopus.dylib").touch()
+            plugin = library / "ao" / "plugins-4" / "libmacosx.so"
+            plugin.parent.mkdir(parents=True)
+            plugin.touch()
+            files = BUILD.racket_foreign_library_files(library, "macosx")
+            self.assertEqual(files, [Path("ao/plugins-4/libmacosx.so"), Path("libopus.dylib")])
 
     def test_windows_configure_scripts_run_through_sh(self) -> None:
         source = Path("source")
