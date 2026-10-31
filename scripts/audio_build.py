@@ -597,10 +597,18 @@ def bundle_windows_toolchain_runtime(stage: Path) -> None:
             fail(f"missing MinGW runtime DLL: {source}")
         shutil.copy2(source, library / name)
     licenses = root / "share" / "licenses"
-    for package in ("gcc-libs", "winpthreads"):
-        source = licenses / package
-        if not source.is_dir():
-            fail(f"missing MinGW runtime license directory: {source}")
+    license_patterns = {
+        "gcc-libs": ("gcc-libs", "gcc*"),
+        "winpthreads": ("winpthreads", "winpthread*"),
+    }
+    for package, patterns in license_patterns.items():
+        candidates = []
+        for pattern in patterns:
+            candidates.extend(path for path in licenses.glob(pattern) if path.is_dir())
+        if not candidates:
+            expected = ", ".join(patterns)
+            fail(f"missing MinGW runtime license directory matching: {expected}")
+        source = sorted(set(candidates))[0]
         shutil.copytree(source, stage / "licenses" / "mingw-ucrt64" / package)
 
 

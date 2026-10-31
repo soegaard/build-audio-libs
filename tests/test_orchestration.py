@@ -146,6 +146,25 @@ The Function Table
             self.assertTrue((stage / "licenses" / "mingw-ucrt64" / "gcc-libs" / "COPYING").is_file())
             self.assertTrue((stage / "licenses" / "mingw-ucrt64" / "winpthreads" / "COPYING").is_file())
 
+    def test_windows_runtime_bundle_accepts_equivalent_license_directory_names(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "ucrt64"
+            compiler = root / "bin" / "gcc"
+            compiler.parent.mkdir(parents=True)
+            compiler.touch()
+            for name in ("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"):
+                (root / "bin" / name).write_bytes(name.encode())
+            for package in ("gcc-16", "winpthreads-git"):
+                license_file = root / "share" / "licenses" / package / "COPYING"
+                license_file.parent.mkdir(parents=True)
+                license_file.write_text(package, encoding="utf-8")
+            stage = Path(directory) / "stage"
+            (stage / "lib").mkdir(parents=True)
+            with mock.patch.object(BUILD.shutil, "which", return_value=str(compiler)):
+                BUILD.bundle_windows_toolchain_runtime(stage)
+            self.assertTrue((stage / "licenses" / "mingw-ucrt64" / "gcc-libs" / "COPYING").is_file())
+            self.assertTrue((stage / "licenses" / "mingw-ucrt64" / "winpthreads" / "COPYING").is_file())
+
     def test_runtime_smoke_chooses_exact_library_names(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             library = Path(directory)
