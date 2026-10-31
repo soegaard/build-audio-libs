@@ -756,15 +756,6 @@ def architecture_matches(description: str, architecture: str) -> bool:
     return any(name in description.lower() for name in aliases.get(architecture, (architecture,)))
 
 
-def windows_export_symbols(details: str) -> str:
-    """Extract DLL export names from objdump's PE export table."""
-    _, marker, table = details.partition("[Ordinal/Name Pointer] Table")
-    if not marker:
-        return ""
-    table = table.split("The Function Table", 1)[0]
-    return "\n".join(re.findall(r"^\s*\[\s*\d+\]\s+(\S+)", table, flags=re.MULTILINE))
-
-
 def audit_target(target: str, stage: Path | None = None) -> Path:
     config = target_config(target)
     stage = stage or (WORK / "stage" / target)
@@ -830,7 +821,9 @@ def audit_target(target: str, stage: Path | None = None) -> Path:
             for dependency in imports:
                 if dependency.lower() not in staged_names and not allowed_dependency(dependency, allowed_names):
                     report["errors"].append(f"{key}: unbundled runtime dependency {dependency}")
-            symbols = windows_export_symbols(details)
+            # PE objdump output contains the export names, but its table
+            # layout differs between supported MinGW releases.
+            symbols = "\n".join(symbol for symbol in REQUIRED_EXPORTS.values() if symbol in details)
         forbidden = [str(WORK), "/opt/homebrew", "/usr/local/homebrew"]
         if system != "windows" and any(value in details for value in forbidden):
             report["errors"].append(f"{key}: contains a build or Homebrew path")

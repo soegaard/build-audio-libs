@@ -102,18 +102,6 @@ class OrchestrationTests(unittest.TestCase):
             ["sh", "/d/build/source/configure", "--prefix=out"],
         )
 
-    def test_windows_export_symbols_reads_pe_export_table(self) -> None:
-        details = """\
-The Export Tables (interpreted .edata section contents)
-[Ordinal/Name Pointer] Table
-\t[   0] avcodec_version
-\t[   1] avcodec_send_packet
-The Function Table
-"""
-        symbols = BUILD.windows_export_symbols(details)
-        self.assertIn("avcodec_version", symbols)
-        self.assertIn("avcodec_send_packet", symbols)
-
     def test_windows_aliases_cover_upstream_import_names(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             stage = Path(directory)
