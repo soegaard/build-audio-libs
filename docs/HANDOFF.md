@@ -37,6 +37,9 @@ subpath, including a runtime suffix such as `/cs`. The following template has
 placeholders that must be replaced with the actual target, version, and files
 from `runtime-manifest.json`:
 
+Racket package versions are numeric and reject a final `.0`. The build tool
+therefore writes `0.1` in `info.rkt` for a `0.1.0` release.
+
 ```racket
 #lang info
 (define collection 'use-pkg-name)

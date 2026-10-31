@@ -54,6 +54,11 @@ class OrchestrationTests(unittest.TestCase):
         with self.assertRaises(BUILD.BuildError):
             BUILD.validate_release_version("release/latest")
 
+    def test_racket_package_version_uses_racket_numeric_syntax(self) -> None:
+        self.assertEqual(BUILD.racket_package_version("0.1.0"), "0.1")
+        self.assertEqual(BUILD.racket_package_version("1.2.3"), "1.2.3")
+        self.assertEqual(BUILD.racket_package_version("1.0.0-rc1"), "1.0")
+
     def test_malformed_archive_path_fails(self) -> None:
         import tarfile
 
@@ -122,13 +127,14 @@ class OrchestrationTests(unittest.TestCase):
                 (stage / "runtime-manifest.json").write_text("{}\n", encoding="utf-8")
                 (stage / "provenance.json").write_text("{}\n", encoding="utf-8")
                 with mock.patch.object(BUILD, "audit_target") as audit:
-                    package = BUILD.racket_package_target("x86_64-win32", "1.2.3")
+                    package = BUILD.racket_package_target("x86_64-win32", "0.1.0")
                 audit.assert_called_once_with("x86_64-win32", stage)
                 self.assertEqual((package / "lib" / "opus.dll").read_bytes(), b"opus")
                 self.assertEqual((package / "lib" / "ao" / "plugins-4" / "ao_null.dll").read_bytes(), b"plugin")
                 self.assertEqual((package / "licenses" / "opus-COPYING").read_text(encoding="utf-8"), "license")
                 info = (package / "info.rkt").read_text(encoding="utf-8")
                 self.assertIn("(define collection 'use-pkg-name)", info)
+                self.assertIn('(define version "0.1")', info)
                 self.assertIn("(define install-platform 'windows)", info)
                 self.assertIn('"lib/opus.dll"', info)
                 self.assertNotIn(b"\r\n", (package / "info.rkt").read_bytes())

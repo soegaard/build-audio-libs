@@ -933,6 +933,18 @@ def validate_release_version(version: str) -> None:
         fail("release version must look like 1.2.3 or 1.2.3-rc1")
 
 
+def racket_package_version(version: str) -> str:
+    """Convert a release version to Racket's numeric package version format."""
+    numeric = version.split("-", 1)[0]
+    parts = numeric.split(".")
+    while len(parts) > 2 and parts[-1] == "0":
+        parts.pop()
+    package_version = ".".join(parts)
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]{0,1})(?:[.](?:0|[1-9][0-9]{0,2})){0,2}", package_version):
+        fail(f"cannot convert release version {version!r} to a Racket package version")
+    return package_version
+
+
 def package_target(target: str, version: str) -> Path:
     stage = WORK / "stage" / target
     if not stage.is_dir():
@@ -989,6 +1001,7 @@ def racket_package_target(target: str, version: str) -> Path:
     if not library.is_dir():
         fail(f"missing staged runtime for {target}; run stage first")
     validate_release_version(version)
+    package_version = racket_package_version(version)
     audit_target(target, stage)
     destination = WORK / "racket-package" / target
     if destination.exists():
@@ -1003,7 +1016,7 @@ def racket_package_target(target: str, version: str) -> Path:
         else:
             fail(f"missing staged package file: {source}")
     library_files = racket_foreign_library_files(library, target_config(target)["os"])
-    write_racket_package_info(target, version, library_files, destination)
+    write_racket_package_info(target, package_version, library_files, destination)
     print(destination)
     return destination
 
