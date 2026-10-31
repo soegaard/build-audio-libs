@@ -91,4 +91,5 @@ jobs:
             reports/${{ matrix.target }}/
             .work/stage/${{ matrix.target }}/runtime-manifest.json
             .work/stage/${{ matrix.target }}/provenance.json
+            .work/racket-package/${{ matrix.target }}/
           if-no-files-found: error

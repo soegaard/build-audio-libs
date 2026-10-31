@@ -45,12 +45,16 @@ jobs:
         include:
           - target: aarch64-macosx
             runner: macos-26
+            racket_arch: arm64
           - target: x86_64-linux
             runner: ubuntu-22.04
+            racket_arch: x64
           - target: aarch64-linux
             runner: ubuntu-22.04-arm
+            racket_arch: arm64
           - target: x86_64-win32
             runner: windows-2022
+            racket_arch: x64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -68,6 +72,11 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-nasm
             make autoconf automake libtool patch git
+      - name: Set up Racket for the binding test
+        uses: Bogdanp/setup-racket@7d611d7f8c6ceba351f765cd2ef9e046f35af486 # master, 2026-10-16
+        with:
+          version: '8.18'
+          architecture: ${{ matrix.racket_arch }}
       - name: Install Unix build tools
         if: runner.os == 'Linux'
         run: |
@@ -88,6 +97,7 @@ jobs:
             dist/*-${{ matrix.target }}-${{ inputs.version }}.*
             reports/${{ matrix.target }}/
             .work/stage/${{ matrix.target }}/
+            .work/racket-package/${{ matrix.target }}/
           if-no-files-found: error
 
   draft:

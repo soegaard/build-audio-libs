@@ -108,6 +108,30 @@ class OrchestrationTests(unittest.TestCase):
             self.assertEqual((install / "version.txt").read_text(encoding="utf-8"), "(1 1 2)\n")
             self.assertEqual((install / "windows-x86_64" / "libopus.dll").read_bytes(), b"native library")
 
+    def test_racket_package_contains_the_staged_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(BUILD, "WORK", Path(directory) / "work"):
+                stage = BUILD.WORK / "stage" / "x86_64-win32"
+                library = stage / "lib"
+                plugin = library / "ao" / "plugins-4" / "ao_null.dll"
+                plugin.parent.mkdir(parents=True)
+                (library / "opus.dll").write_bytes(b"opus")
+                plugin.write_bytes(b"plugin")
+                (stage / "licenses").mkdir()
+                (stage / "licenses" / "opus-COPYING").write_text("license", encoding="utf-8")
+                (stage / "runtime-manifest.json").write_text("{}\n", encoding="utf-8")
+                (stage / "provenance.json").write_text("{}\n", encoding="utf-8")
+                with mock.patch.object(BUILD, "audit_target") as audit:
+                    package = BUILD.racket_package_target("x86_64-win32", "1.2.3")
+                audit.assert_called_once_with("x86_64-win32", stage)
+                self.assertEqual((package / "lib" / "opus.dll").read_bytes(), b"opus")
+                self.assertEqual((package / "lib" / "ao" / "plugins-4" / "ao_null.dll").read_bytes(), b"plugin")
+                self.assertEqual((package / "licenses" / "opus-COPYING").read_text(encoding="utf-8"), "license")
+                info = (package / "info.rkt").read_text(encoding="utf-8")
+                self.assertIn('(define install-platform "win32\\\\x86_64")', info)
+                self.assertIn('"lib/opus.dll"', info)
+                self.assertIn('"lib/ao/plugins-4/ao_null.dll"', info)
+
     def test_windows_configure_scripts_run_through_sh(self) -> None:
         source = Path("source")
         self.assertEqual(

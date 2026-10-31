@@ -950,11 +950,66 @@ def package_target(target: str, version: str) -> Path:
     return output
 
 
+def racket_install_platform(target: str) -> str:
+    config = target_config(target)
+    if config["os"] == "windows":
+        return f"win32\\\\{config['arch']}"
+    return f"{config['arch']}-{config['os']}"
+
+
+def write_racket_package_info(target: str, version: str, library_files: list[Path], destination: Path) -> None:
+    foreign_libraries = "\n".join(
+        f'    "lib/{path.as_posix()}"' for path in library_files
+    )
+    content = f'''#lang info
+
+(define collection 'multi)
+(define version "{version}")
+(define pkg-desc "native libraries for racket-audio on {target}")
+(define pkg-authors '(hans))
+(define license '(GPL-2.0-or-later))
+(define install-platform "{racket_install_platform(target)}")
+(define copy-foreign-libs
+  '({foreign_libraries}))
+(define deps '("base"))
+'''
+    (destination / "info.rkt").write_text(content, encoding="utf-8")
+
+
+def racket_package_target(target: str, version: str) -> Path:
+    """Create a Racket package directory from an audited staged runtime."""
+    stage = WORK / "stage" / target
+    library = stage / "lib"
+    if not library.is_dir():
+        fail(f"missing staged runtime for {target}; run stage first")
+    validate_release_version(version)
+    audit_target(target, stage)
+    destination = WORK / "racket-package" / target
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(library, destination / "lib", symlinks=True)
+    for name in ("licenses", "runtime-manifest.json", "provenance.json"):
+        source = stage / name
+        if source.is_dir():
+            shutil.copytree(source, destination / name, symlinks=True)
+        elif source.is_file():
+            shutil.copy2(source, destination / name)
+        else:
+            fail(f"missing staged package file: {source}")
+    library_files = sorted(
+        path.relative_to(library) for path in shared_files(library, target_config(target)["os"])
+    )
+    write_racket_package_info(target, version, library_files, destination)
+    print(destination)
+    return destination
+
+
 def complete(target: str, version: str, clean: bool) -> Path:
     build_target(target, clean=clean)
     stage_target(target)
     audit_target(target)
     test_target(target)
+    racket_package_target(target, version)
     return package_target(target, version)
 
 
@@ -971,6 +1026,9 @@ def parser() -> argparse.ArgumentParser:
     package = sub.add_parser("package")
     package.add_argument("--target", required=True)
     package.add_argument("--version", required=True)
+    racket_package = sub.add_parser("racket-package", help="create a Racket platform package directory")
+    racket_package.add_argument("--target", required=True)
+    racket_package.add_argument("--version", required=True)
     all_command = sub.add_parser("all", help="fetch, build, stage, audit, test, and package")
     all_command.add_argument("--target", required=True)
     all_command.add_argument("--version", required=True)
@@ -1000,6 +1058,8 @@ def main() -> int:
             test_target(arguments.target)
         elif arguments.command == "package":
             package_target(arguments.target, arguments.version)
+        elif arguments.command == "racket-package":
+            racket_package_target(arguments.target, arguments.version)
         elif arguments.command == "all":
             validate_lock()
             lock = load_lock()

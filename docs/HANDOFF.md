@@ -1,7 +1,17 @@
 # Handoff to racket-audio-native-libs
 
 Hans's repository is the distribution repository. 
-This repository only produces release-ready source-build archives. 
+This repository produces audited source-build archives and Racket package directories.
+
+`all` also creates a Racket package directory at
+`.work/racket-package/<target>/`. To prepare one from an existing stage, run:
+
+```sh
+python3 scripts/audio_build.py racket-package --target x86_64-win32 --version 1.0.0
+```
+
+Copy the contents of that directory to the matching branch. It contains the
+generated `info.rkt`, native libraries, licenses, manifest, and provenance.
 
 | Build archive target | Hans branch      | Racket package |
 | ---                  | ---              | --- |
