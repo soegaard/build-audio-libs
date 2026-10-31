@@ -756,6 +756,18 @@ def architecture_matches(description: str, architecture: str) -> bool:
     return any(name in description.lower() for name in aliases.get(architecture, (architecture,)))
 
 
+def racket_executable(target: str) -> str | None:
+    found = shutil.which("racket")
+    if found:
+        return found
+    if target_config(target)["os"] == "windows":
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+        installed = Path(program_files) / "Racket" / "racket.exe"
+        if installed.is_file():
+            return str(installed)
+    return None
+
+
 def audit_target(target: str, stage: Path | None = None) -> Path:
     config = target_config(target)
     stage = stage or (WORK / "stage" / target)
@@ -870,8 +882,11 @@ def test_target(target: str) -> None:
     consumer = WORK / "consumer" / "racket-audio"
     if not consumer.is_dir():
         fail("missing pinned racket-audio source; run fetch before test")
+    racket = racket_executable(target)
+    if not racket:
+        fail("Racket is required for the pinned consumer binding test")
     racket_collections = capture([
-        "racket", "-e", "(require setup/dirs racket/path) (display (path->string (find-collects-dir)))",
+        racket, "-e", "(require setup/dirs racket/path) (display (path->string (find-collects-dir)))",
     ])
     if racket_collections.startswith("unavailable:"):
         fail("Racket is required for the pinned consumer binding test")
@@ -882,7 +897,7 @@ def test_target(target: str) -> None:
     binding_env.pop("DYLD_PRINT_LIBRARIES", None)
     binding_env.pop("LD_DEBUG", None)
     binding_env["PLTCOLLECTS"] = os.pathsep.join([str(stubs), racket_collections])
-    run(["racket", str(ROOT / "tests" / "racket_binding_smoke.rkt"), str(consumer)], env=binding_env)
+    run([racket, str(ROOT / "tests" / "racket_binding_smoke.rkt"), str(consumer)], env=binding_env)
     print(f"package test completed from isolated directory: {stage}")
 
 

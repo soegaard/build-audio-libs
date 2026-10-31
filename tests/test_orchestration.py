@@ -86,6 +86,15 @@ class OrchestrationTests(unittest.TestCase):
         self.assertTrue(BUILD.architecture_matches("ELF 64-bit aarch64", "aarch64"))
         self.assertFalse(BUILD.architecture_matches("ELF 64-bit aarch64", "x86_64"))
 
+    def test_windows_racket_uses_installer_location_when_not_on_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            racket = Path(directory) / "Racket" / "racket.exe"
+            racket.parent.mkdir()
+            racket.touch()
+            with mock.patch.object(BUILD.shutil, "which", return_value=None):
+                with mock.patch.dict(BUILD.os.environ, {"ProgramFiles": directory}, clear=False):
+                    self.assertEqual(BUILD.racket_executable("x86_64-win32"), str(racket))
+
     def test_windows_configure_scripts_run_through_sh(self) -> None:
         source = Path("source")
         self.assertEqual(
