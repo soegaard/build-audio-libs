@@ -108,6 +108,12 @@ class OrchestrationTests(unittest.TestCase):
         with mock.patch.object(BUILD, "capture", return_value="aarch64-macosx/cs"):
             self.assertTrue(BUILD.racket_matches_target("racket", "aarch64-macosx"))
 
+    def test_raco_uses_the_windows_executable_suffix(self) -> None:
+        self.assertEqual(BUILD.raco_executable("/Applications/Racket/bin/racket"),
+                         "/Applications/Racket/bin/raco")
+        self.assertEqual(BUILD.raco_executable("C:/Program Files/Racket/racket.exe"),
+                         "C:/Program Files/Racket/raco.exe")
+
     def test_windows_racket_addon_uses_isolated_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             stage = Path(directory) / "isolated-runtime"

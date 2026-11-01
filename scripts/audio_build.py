@@ -809,6 +809,13 @@ def racket_executable(target: str) -> str | None:
     return None
 
 
+def raco_executable(racket: str) -> str:
+    """Return the raco command installed next to a Racket executable."""
+    path = Path(racket)
+    name = "raco.exe" if path.suffix.lower() == ".exe" else "raco"
+    return str(path.with_name(name))
+
+
 def audit_target(target: str, stage: Path | None = None) -> Path:
     config = target_config(target)
     stage = stage or (WORK / "stage" / target)
@@ -975,7 +982,7 @@ def test_target(target: str) -> None:
     binding_env["PLTUSERHOME"] = str(racket_home)
     package = prepare_racket_platform_package(stage, target)
     package_name = f"racket-audio-{target}"
-    raco = str(Path(racket).with_name("raco"))
+    raco = raco_executable(racket)
     if not Path(raco).is_file():
         fail(f"missing raco executable next to Racket: {raco}")
     run([
