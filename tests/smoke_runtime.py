@@ -7,6 +7,7 @@ import argparse
 import ctypes
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -61,6 +62,25 @@ def library_for(directory: Path, stem: str) -> Path:
     return candidates[0]
 
 
+def check_libaio_plugin_symbols(library: Path) -> None:
+    """Ensure dynamic libao drivers do not need symbols from libao itself."""
+    plugin_directory = library / "ao" / "plugins-4"
+    if not plugin_directory.is_dir():
+        return
+    if sys.platform == "darwin":
+        plugins = sorted(plugin_directory.glob("*.so"))
+        command = lambda path: ["nm", "-u", str(path)]
+    else:
+        plugins = sorted(plugin_directory.glob("*.so"))
+        command = lambda path: ["nm", "-D", "--undefined-only", str(path)]
+    for plugin in plugins:
+        result = subprocess.run(command(plugin), check=True, capture_output=True, text=True)
+        if re.search(r"(?:^|_)ao_is_big_endian\\b", result.stdout, re.MULTILINE):
+            raise RuntimeError(
+                f"{plugin.name} needs ao_is_big_endian from libao at run time"
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", required=True)
@@ -73,6 +93,7 @@ def main() -> int:
         raise RuntimeError("test was pointed at a build prefix")
     if hasattr(os, "add_dll_directory"):
         os.add_dll_directory(str(library))
+    check_libaio_plugin_symbols(library)
     loaded = {}
     loaded_paths = {}
     # Load dependency leaves before users so Windows and macOS cannot hide a
@@ -80,8 +101,7 @@ def main() -> int:
     order = ["ogg", "opus", "FLAC", "mpg123", "soxr", "tag_c", "opusfile", "opusenc", "ao", "avutil", "swresample", "avcodec", "avformat"]
     for stem in order:
         path = library_for(library, stem)
-        mode = getattr(ctypes, "RTLD_GLOBAL", 0) if stem == "ao" else 0
-        handle = ctypes.CDLL(str(path), mode=mode)
+        handle = ctypes.CDLL(str(path))
         symbol = REQUIRED_SYMBOLS[stem]
         getattr(handle, symbol)
         loaded[stem] = handle

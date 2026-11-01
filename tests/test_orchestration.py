@@ -89,6 +89,7 @@ class OrchestrationTests(unittest.TestCase):
     def test_architecture_matching_accepts_file_tool_names(self) -> None:
         self.assertTrue(BUILD.architecture_matches("ELF 64-bit x86-64", "x86_64"))
         self.assertTrue(BUILD.architecture_matches("ELF 64-bit aarch64", "aarch64"))
+        self.assertTrue(BUILD.architecture_matches("aarch64-macosx/cs", "arm64"))
         self.assertFalse(BUILD.architecture_matches("ELF 64-bit aarch64", "x86_64"))
 
     def test_windows_racket_uses_installer_location_when_not_on_path(self) -> None:
@@ -98,7 +99,14 @@ class OrchestrationTests(unittest.TestCase):
             racket.touch()
             with mock.patch.object(BUILD.shutil, "which", return_value=None):
                 with mock.patch.dict(BUILD.os.environ, {"ProgramFiles": directory}, clear=False):
-                    self.assertEqual(BUILD.racket_executable("x86_64-win32"), str(racket))
+                    with mock.patch.object(BUILD, "capture", return_value="x86_64-win32/cs"):
+                        self.assertEqual(BUILD.racket_executable("x86_64-win32"), str(racket))
+
+    def test_racket_platform_must_match_target(self) -> None:
+        with mock.patch.object(BUILD, "capture", return_value="x86_64-macosx/cs"):
+            self.assertFalse(BUILD.racket_matches_target("racket", "aarch64-macosx"))
+        with mock.patch.object(BUILD, "capture", return_value="aarch64-macosx/cs"):
+            self.assertTrue(BUILD.racket_matches_target("racket", "aarch64-macosx"))
 
     def test_windows_racket_addon_uses_isolated_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

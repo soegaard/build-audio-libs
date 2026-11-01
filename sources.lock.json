@@ -3,11 +3,11 @@
   "consumer": {
     "name": "racket-audio",
     "repository": "https://git.dijkewijk.nl/hans/racket-audio.git",
-    "commit": "b1c6e3976a5ca63c5fa41564eea31c80d110d06e",
+    "commit": "c925e3a17f19ffcbeb5179cc1e268b6b5f95f16c",
     "license": "GPL-2.0-or-later",
     "test_dependencies": {
-      "racket": "8.12",
-      "note": "The integration runner uses only the pinned consumer source and Racket distribution libraries. It does not call raco pkg install or download package dependencies."
+      "racket": "8.18",
+      "note": "The integration runner installs a temporary platform package with raco setup and tests the pinned consumer source against its copied foreign libraries."
     }
   },
   "sources": [
@@ -130,7 +130,11 @@
       "license": "GPL-2.0-or-later",
       "dependencies": [],
       "recipe": "autotools:libao",
-      "patches": ["patches/libao-relocatable-plugin-path.patch"]
+      "patches": [
+        "patches/libao-relocatable-plugin-path.patch",
+        "patches/libao-plugin-local-endianness.patch",
+        "patches/libao-modern-autotools.patch"
+      ]
     },
     {
       "name": "ffmpeg",

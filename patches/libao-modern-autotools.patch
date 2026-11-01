@@ -1,0 +1,21 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -6,7 +6,6 @@
+ AM_MAINTAINER_MODE
+ 
+ dnl $$$ben: Is that neccessary ? And why ?
+-AM_DISABLE_STATIC
+ 
+ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+ 
+@@ -33,9 +32,7 @@
+ 
+ cflags_save="$CFLAGS"
+ AC_PROG_CC
+-AC_LIBTOOL_WIN32_DLL
+-AC_LIBTOOL_DLOPEN
+-AM_PROG_LIBTOOL
++LT_INIT([disable-static dlopen win32-dll])
+ 
+ dnl ====================================
+ dnl Check dlopen 

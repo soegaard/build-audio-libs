@@ -414,7 +414,16 @@ def build_autotools(name: str, source: Path, target: str, prefix: Path, env: dic
         else:
             bootstrap_env = env.copy()
             if system == "macosx":
-                bootstrap_env["LIBTOOLIZE"] = "glibtoolize"
+                libtoolize = shutil.which("glibtoolize") or shutil.which("libtoolize")
+                if not libtoolize:
+                    fail("GNU libtoolize is required to build libao on macOS")
+                bootstrap_env["LIBTOOLIZE"] = libtoolize
+                aclocal_directory = Path(libtoolize).resolve().parent.parent / "share" / "aclocal"
+                if aclocal_directory.is_dir():
+                    previous = bootstrap_env.get("ACLOCAL_PATH", "")
+                    bootstrap_env["ACLOCAL_PATH"] = os.pathsep.join(
+                        value for value in (str(aclocal_directory), previous) if value
+                    )
             run(["autoreconf", "--install", "--force"], cwd=source, env=bootstrap_env)
     options = [f"--prefix={prefix}", "--enable-shared", "--disable-static"]
     if name == "mpg123":
@@ -761,19 +770,42 @@ def architecture_matches(description: str, architecture: str) -> bool:
     aliases = {
         "x86_64": ("x86_64", "x86-64"),
         "aarch64": ("aarch64", "arm64"),
+        "arm64": ("arm64", "aarch64"),
     }
     return any(name in description.lower() for name in aliases.get(architecture, (architecture,)))
 
 
+def racket_matches_target(racket: str, target: str) -> bool:
+    """Return whether a Racket executable can load libraries for target."""
+    platform = capture([racket, "-e", "(display (system-library-subpath))"])
+    if platform.startswith("unavailable:"):
+        return False
+    config = target_config(target)
+    system = "win32" if config["os"] == "windows" else config["os"]
+    return system in platform and architecture_matches(platform, config["arch"])
+
+
 def racket_executable(target: str) -> str | None:
-    found = shutil.which("racket")
-    if found:
-        return found
-    if target_config(target)["os"] == "windows":
+    candidates = [os.environ.get("RACKET"), shutil.which("racket")]
+    system = target_config(target)["os"]
+    if system == "macosx":
+        candidates.extend(
+            str(path) for path in sorted(
+                Path("/Applications").glob("Racket */bin/racket"), reverse=True
+            )
+        )
+    elif system == "windows":
         program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
         installed = Path(program_files) / "Racket" / "racket.exe"
         if installed.is_file():
-            return str(installed)
+            candidates.append(str(installed))
+    seen = set()
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if racket_matches_target(candidate, target):
+            return candidate
     return None
 
 
@@ -885,6 +917,18 @@ def prepare_racket_sound_lib_addon(stage: Path, target: str) -> Path | None:
     return addon
 
 
+def prepare_racket_platform_package(stage: Path, target: str) -> Path:
+    """Create a temporary platform package for the Racket binding test."""
+    package = stage.parent / "racket-platform-package"
+    if package.exists():
+        shutil.rmtree(package)
+    library = stage / "lib"
+    shutil.copytree(library, package / "lib", symlinks=True)
+    files = racket_foreign_library_files(library, target_config(target)["os"])
+    write_racket_package_info(target, "0.0", files, package)
+    return package
+
+
 def test_target(target: str) -> None:
     stage = isolated_stage(target)
     audit_target(target, stage)
@@ -920,10 +964,21 @@ def test_target(target: str) -> None:
     # output needlessly large and is not part of the binding test.
     binding_env.pop("DYLD_PRINT_LIBRARIES", None)
     binding_env.pop("LD_DEBUG", None)
+    racket_home = stage.parent / "racket-user-home"
+    if racket_home.exists():
+        shutil.rmtree(racket_home)
+    binding_env["PLTUSERHOME"] = str(racket_home)
+    package = prepare_racket_platform_package(stage, target)
+    package_name = f"racket-audio-{target}"
+    raco = str(Path(racket).with_name("raco"))
+    if not Path(raco).is_file():
+        fail(f"missing raco executable next to Racket: {raco}")
+    run([
+        raco, "pkg", "install", "--no-setup", "--scope", "user", "--link",
+        "--name", package_name, str(package),
+    ], env=binding_env)
+    run([raco, "setup", "--only-foreign-libs", "--pkgs", package_name], env=binding_env)
     binding_env["PLTCOLLECTS"] = os.pathsep.join([str(stubs), racket_collections])
-    addon = prepare_racket_sound_lib_addon(stage, target)
-    if addon:
-        binding_env["PLTADDONDIR"] = str(addon)
     run([racket, str(ROOT / "tests" / "racket_binding_smoke.rkt"), str(consumer)], env=binding_env)
     print(f"package test completed from isolated directory: {stage}")
 

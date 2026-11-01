@@ -7,7 +7,7 @@ It pins every native source archive by HTTPS URL and SHA-256.
 It also pins the consumer revision:
 
 ```text
-racket-audio b1c6e3976a5ca63c5fa41564eea31c80d110d06e
+racket-audio c925e3a17f19ffcbeb5179cc1e268b6b5f95f16c
 ```
 
 That revision loads libao, libmpg123, libFLAC, libogg, libopus, libopusfile, libopusenc, 
@@ -55,6 +55,7 @@ Unix archives preserve symlinks and modes. Windows uses zip and includes the Min
 
 `test` first copies the staged runtime to another directory. It never adds the original build prefix to a loader path. 
 It then checks library loading, required symbols, the FFmpeg ABI, and libao init/shutdown using only the extracted runtime. 
+For the Racket binding test, it selects a Racket executable for the target architecture, installs a temporary platform package, and runs `raco setup --only-foreign-libs`. This checks the same copied foreign-library layout used by the published package.
 The audit checks filenames, architecture, and loader metadata. On Unix it also checks RPATH or install names and forbidden build or Homebrew paths.
 
 The GitHub workflow runs the same `all` command for every target. 
@@ -80,7 +81,7 @@ glibc and libstdc++ are not bundled.
 libao needs more than `libao` itself. Its optional drivers live in `lib/ao/plugins-4`. 
 `patches/libao-relocatable-plugin-path.patch` derives that directory from the loaded library on macOS. 
 It also has a restricted fallback for Racket's flattened `copy-foreign-libs` installation. 
-The patch is recorded, hashed, dry-run tested, and included in provenance.
+The libao patches are recorded, hashed, dry-run tested, and included in provenance. They also prevent dynamic drivers from requiring an unresolved libao helper symbol.
 
 ## Updating a dependency
 
