@@ -592,6 +592,8 @@ def windows_aliases(stage: Path) -> None:
         "libopusenc.dll": library / "libopusenc-0.dll",
         "mpg123.dll": library / "libmpg123-0.dll",
         "zlib.dll": library / "libzlib1.dll",
+        # FFmpeg and TagLib import this exact name on Windows.
+        "zlib1.dll": library / "libzlib1.dll",
         "ogg.dll": library / "libogg.dll",
     }
     for alias, source in aliases.items():
@@ -1091,6 +1093,11 @@ def racket_package_target(target: str, version: str) -> Path:
 def racket_foreign_library_files(library: Path, system: str) -> list[Path]:
     """Return staged libraries that Racket must copy to its foreign-lib directory."""
     files = set(shared_files(library, system))
+    if system == "windows":
+        # Racket already provides zlib1.dll. Copying another file with that
+        # name makes package installation fail, while the supplied zlib ABI
+        # satisfies the bundled DLLs that import it.
+        files = {path for path in files if path.name.lower() != "zlib1.dll"}
     if system == "macosx":
         plugin_root = library / "ao"
         files.update(
