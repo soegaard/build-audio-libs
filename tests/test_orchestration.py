@@ -209,8 +209,11 @@ class OrchestrationTests(unittest.TestCase):
             self.assertEqual((library / "libopusenc.dll").read_bytes(), b"libopusenc-0.dll")
             self.assertEqual((library / "mpg123.dll").read_bytes(), b"libmpg123-0.dll")
             self.assertEqual((library / "zlib.dll").read_bytes(), b"libzlib1.dll")
-            self.assertEqual((library / "zlib1.dll").read_bytes(), b"libzlib1.dll")
+            self.assertFalse((library / "zlib1.dll").exists())
             self.assertEqual((library / "ogg.dll").read_bytes(), b"libogg.dll")
+            files = BUILD.racket_foreign_library_files(library, "windows")
+            self.assertIn(Path("zlib.dll"), files)
+            self.assertNotIn(Path("zlib1.dll"), files)
 
     def test_windows_runtime_bundle_includes_dlls_and_licenses(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

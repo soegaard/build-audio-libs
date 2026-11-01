@@ -592,8 +592,6 @@ def windows_aliases(stage: Path) -> None:
         "libopusenc.dll": library / "libopusenc-0.dll",
         "mpg123.dll": library / "libmpg123-0.dll",
         "zlib.dll": library / "libzlib1.dll",
-        # These names are also used by dependent Windows DLLs.
-        "zlib1.dll": library / "libzlib1.dll",
         "ogg.dll": library / "libogg.dll",
     }
     for alias, source in aliases.items():
