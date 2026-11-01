@@ -947,6 +947,11 @@ def test_target(target: str) -> None:
         env["PATH"] = str(stage / "lib") + os.pathsep + env.get("PATH", "")
     smoke = ROOT / "tests" / "smoke_runtime.py"
     run([sys.executable, str(smoke), "--target", target, "--runtime", str(stage)], env=env)
+    exercises = ROOT / "tests" / "native_library_exercises.py"
+    exercise_env = env.copy()
+    exercise_env.pop("DYLD_PRINT_LIBRARIES", None)
+    exercise_env.pop("LD_DEBUG", None)
+    run([sys.executable, str(exercises), "--target", target, "--runtime", str(stage)], env=exercise_env)
     consumer = WORK / "consumer" / "racket-audio"
     if not consumer.is_dir():
         fail("missing pinned racket-audio source; run fetch before test")

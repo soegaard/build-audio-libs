@@ -13,6 +13,7 @@ from pathlib import Path
 
 
 REQUIRED_SYMBOLS = {
+    "zlib": "zlibVersion",
     "avutil": "avutil_version",
     "avcodec": "avcodec_version",
     "avformat": "avformat_version",
@@ -29,6 +30,7 @@ REQUIRED_SYMBOLS = {
 }
 
 LIBRARY_PREFIXES = {
+    "zlib": ("libz", "libzlib1", "zlib", "zlib1"),
     "avutil": ("libavutil", "avutil"), "avcodec": ("libavcodec", "avcodec"),
     "avformat": ("libavformat", "avformat"), "swresample": ("libswresample", "swresample"),
     "FLAC": ("libFLAC",), "mpg123": ("libmpg123",), "soxr": ("libsoxr",),
@@ -38,10 +40,14 @@ LIBRARY_PREFIXES = {
 
 
 def library_for(directory: Path, stem: str) -> Path:
-    candidates = sorted(directory.glob(f"*{stem}*.dylib"))
-    candidates += sorted(directory.glob(f"*{stem}*.so*"))
-    candidates += sorted(directory.glob(f"*{stem}*.dll"))
     prefixes = LIBRARY_PREFIXES[stem]
+    candidates = []
+    for suffix in (".dylib", ".so*", ".dll"):
+        candidates.extend(sorted({
+            candidate
+            for prefix in prefixes
+            for candidate in directory.glob(f"*{prefix}*{suffix}")
+        }))
     candidates = [
         candidate for candidate in candidates
         if any(
@@ -98,7 +104,7 @@ def main() -> int:
     loaded_paths = {}
     # Load dependency leaves before users so Windows and macOS cannot hide a
     # missing direct dependency through an unrelated host installation.
-    order = ["ogg", "opus", "FLAC", "mpg123", "soxr", "tag_c", "opusfile", "opusenc", "ao", "avutil", "swresample", "avcodec", "avformat"]
+    order = ["zlib", "ogg", "opus", "FLAC", "mpg123", "soxr", "tag_c", "opusfile", "opusenc", "ao", "avutil", "swresample", "avcodec", "avformat"]
     for stem in order:
         path = library_for(library, stem)
         handle = ctypes.CDLL(str(path))
